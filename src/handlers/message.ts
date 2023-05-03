@@ -1,4 +1,4 @@
-import { Message } from "whatsapp-web.js";
+import { Message, MessageMedia } from "whatsapp-web.js";
 import { startsWithIgnoreCase } from "../utils";
 
 // Config & Constants
@@ -43,16 +43,29 @@ async function handleIncomingMessage(message: Message) {
 			return;
 		}
 	}
-  
+
 	// Ignore groupchats if disabled
-  if ((await message.getChat()).isGroup && !config.groupchatsEnabled) return;
+	if ((await message.getChat()).isGroup && !config.groupchatsEnabled) return;
 
 	const selfNotedMessage = message.fromMe && message.hasQuotedMsg === false && message.from === message.to;
 	const whitelistedPhoneNumbers = getConfig("general", "whitelist");
 
 	if (!selfNotedMessage && whitelistedPhoneNumbers.length > 0 && !whitelistedPhoneNumbers.includes(message.from)) {
 		cli.print(`Ignoring message from ${message.from} because it is not whitelisted.`);
-		return;
+		if (!(await message.getChat()).isGroup) {
+			return await message.reply('Contact admin to use this bot. \nRevan - 6281261865875 \n\nThank you.', message.from, { parseVCards: true });
+		}
+	}
+
+
+	// Image to Sticker
+	if (!(await message.getChat()).isGroup) {
+		if (message.hasMedia && message.type === "image" || message.type === "sticker" || message.type === "video" && !message.fromMe) {
+			const media = await message.downloadMedia();
+			const sticker = new MessageMedia(media.mimetype, media.data, media.filename);
+			await message.reply(sticker, undefined, { sendMediaAsSticker: true, stickerAuthor: "OrionPro", stickerName: "-" });
+			return;
+		}
 	}
 
 	// Transcribe audio
